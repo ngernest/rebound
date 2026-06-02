@@ -30,6 +30,8 @@
 
 -- | Well-scoped de Bruijn term representations from scratch.
 {- HLINT ignore "Use camelCase" -}
+{- HLINT ignore "Redundant lambda" -}
+{- HLINT ignore "Use lambda-case" -}
 module Tutorial.Scoped.Scratch where
 
 ------------------------------------------------------------------------
@@ -155,6 +157,8 @@ data Tm (n :: Nat) where
     MatchPair :: Tm n -> Bind2 n -> Tm n
     -- `case e0 of {inj1 x -> e1 ; inj2 y -> e2 }`
     MatchSum  :: Tm n -> Bind1 n -> Bind1 n -> Tm n
+    -- `let x = e in b` (expressed as `Let e b`), binding `e` in the body `b`
+    Let :: Tm n -> Bind1 n -> Tm n 
       deriving (Eq, Show)
 
 -- | A term with one bound variable: a body in scope `S n` 
@@ -275,6 +279,10 @@ applyE env (MatchPair a (Bind2 b)) =
     MatchPair (applyE env a) (Bind2 (applyE (up (up env)) b))
 applyE env (MatchSum a (Bind1 b1) (Bind1 b2)) =
     MatchSum (applyE env a) (Bind1 (applyE (up env) b1)) (Bind1 (applyE (up env) b2))
+-- For `let x = e in b`, apply the substitution to `e` (scope `m`), 
+-- then lift the body when substituting the env to the body `b`,
+-- since the body lives under one binder (at scope `S m`)
+applyE env (Let e (Bind1 b)) = Let (applyE env e) (Bind1 (applyE (up env) b))
 
 -- | Lift an environment under one binder.
 -- The new outermost variable `f0` maps to itself; all others are
@@ -348,6 +356,12 @@ eval (MatchUnit e m) = do
     case v of 
         Unit -> eval m
         _ -> Nothing
+
+-- To evaluate `let x = e in b`, evaluate `e` to a value `v` first, then evaluate
+-- the body `b` with `v` substituted accordingly 
+eval (Let e b) = do 
+  v <- eval e
+  eval (instantiate1 b v)         
 
 -- Some test cases for the evaluator
 
