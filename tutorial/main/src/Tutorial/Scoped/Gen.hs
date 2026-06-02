@@ -1,3 +1,4 @@
+{- HLINT ignore "Use :" -}
 {-|
 Module      : Tutorial.Scoped.Gen
 Description : QuickCheck generators for well-scoped & well-typed lambda calculus terms
@@ -15,6 +16,7 @@ import qualified Test.QuickCheck as QC
 import qualified Data.Fin as Fin
 import Data.Vec (Vec(..), (!))
 import qualified Data.Vec as Vec
+import Rebound.Bind.Local (getLocalName)
 
 ---------------------------------------------------------------------
 -- * Arbitrary instance for Types
@@ -217,6 +219,11 @@ shrinkScoped (Match e brs) =
     [e] ++ [Match e' brs | e' <- shrinkScoped e]
 shrinkScoped (Var x) = []
 shrinkScoped Unit = []
+-- Shrink by: returning the definition, inlining the let (substituting e for the
+-- bound variable in the body), shrinking the RHS of the let-expr `e`, or shrinking the body `b`
+shrinkScoped (Let e b) = [e, instantiate1 b e]
+                       ++ [Let e' b | e' <- shrinkScoped e]
+                       ++ [Let e (bind (getPat b) body') | body' <- shrinkScoped (getBody b)]
 
 ---------------------------------------------------------------------
 -- * Pattern generation
