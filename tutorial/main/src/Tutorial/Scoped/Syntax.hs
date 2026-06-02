@@ -27,6 +27,7 @@ data Tm (n :: Nat) where
     Inj   :: Int -> Tm n -> Tm n
     App   :: Tm n -> Tm n -> Tm n
     Match :: Tm n -> [Branch n] -> Tm n
+    Let :: Tm n -> Bind1 n -> Tm n
       deriving (Eq, Show)
 
 data Branch (n :: Nat) where

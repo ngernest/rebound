@@ -1,8 +1,11 @@
+{- HLINT ignore "Use elemIndex" -}
 {-|
 Module      : Scoped.ScopeCheck
 Description : Parser and Pretty Printer for scoped terms
 
 -}
+{- HLINT ignore "Eta reduce" -}
+{- HLINT ignore "Use elem" -}
 module Tutorial.Scoped.ScopeCheck (
   -- * Scope-check errors
   ScopeCheckError(..),
@@ -46,6 +49,7 @@ import qualified Tutorial.Scoped.Syntax as S
 import Data.Type.Equality ((:~:)(Refl))
 
 import Text.Parsec ( ParseError )
+import Rebound.Bind.Local (getLocalName)
 
 
 ------------------------------------------------------------------------
@@ -295,11 +299,14 @@ injectTmWith vs (S.Var x)     = N.Var (vs ! x)
 injectTmWith vs (S.Lam t)     = N.Lam s (injectTmWith (s ::: vs) (S.getBody t))
                                   where s = freshen (show (S.getPat t)) vs
 injectTmWith vs (S.App e1 e2) = N.App (injectTmWith vs e1) (injectTmWith vs e2)
-injectTmWith vs (S.Unit)      = N.Pair []
+injectTmWith vs S.Unit        = N.Pair []
 injectTmWith vs (S.Pair e1 e2)= N.Pair [injectTmWith vs e1, injectTmWith vs e2]
 injectTmWith vs (S.Inj i e)   = N.Inj i (injectTmWith vs e)
 injectTmWith vs (S.Match e brs) =
     N.Case (injectTmWith vs e) (map (injectBranch vs) brs)
+injectTmWith vs (S.Let e b) = N.Let x (injectTmWith vs e) (injectTmWith (x ::: vs) (S.getBody b))    
+                                -- Note that `getLocalName` is just an alias for `S.getPat`
+                                where x = freshen (show (getLocalName b)) vs
 
 -- | Convert a closed well-scoped term to a named term.
 -- Variable names are taken from the 'S.LocalName' hints stored in binders.
@@ -339,7 +346,6 @@ projectTm :: N.Tm -> Either ScopeCheckError (S.Tm Z)
 projectTm = projectTmWith VNil
 
 
-
 -- | Find the index of the first element that satisfies the given predicate
 findIndex :: (a -> Bool) -> Vec n a -> Maybe (Fin n)
 findIndex f VNil = Nothing
@@ -376,7 +382,24 @@ projectTmWith vs (N.Case e brs) = do
     a' <- projectTmWith vs e
     brs' <- mapM (projectBranchWith vs) brs
     return (S.Match a' brs')
+projectTmWith vs (N.Let x e b) = do 
+    -- first project the RHS of the let
+    e' <- projectTmWith vs e 
+    b' <- projectTmWith (x ::: vs) b
+    return $ S.Let e' (S.bind (S.LocalName x) b')
 projectTmWith vs t = Left (UnsupportedForm t)
+
+
+
+{-
+   projectTm (N.Lam "x" (N.Lam "y" (N.Var "x")))
+== projectTmWith VNil (N.Lam "x" (N.Lam "y" (N.Var "x")))
+== projectTmWith [("x", FZ)] (N.Lam "y" (N.Var "x")))
+== projectTmWith [("y", FZ), ("x", FS FZ)] (N.Var "x")   -- Note that each existing entry's index is shifted up by one 
+== Right FS FZ
+
+-}
+
 
 -- | A projected pattern, binding an arbitrary number of names, paired with 
 -- the vector of names for the bound variables

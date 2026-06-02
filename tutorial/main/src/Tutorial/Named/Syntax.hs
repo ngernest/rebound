@@ -61,6 +61,8 @@ data Tm where
     Case  :: Tm -> [(Tm,Tm)] -> Tm
     -- | Type annotation
     Ann   :: Tm -> Ty -> Tm
+    -- | Let-expressions 
+    Let   :: String -> Tm -> Tm -> Tm
       deriving (Show, Eq)
 
 -- * Syntactic sugar
