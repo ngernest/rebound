@@ -29,6 +29,7 @@
 
 
 -- | Well-scoped de Bruijn term representations from scratch.
+{- HLINT ignore "Use camelCase" -}
 module Tutorial.Scoped.Scratch where
 
 ------------------------------------------------------------------------
@@ -195,6 +196,19 @@ ex_swap = Lam (Bind1 (MatchPair (Var f0) (Bind2 (Pair (Var f0) (Var f1)))))
 -- True
 
 
+-- Exercise 1 
+
+-- λp. match p with (x, y) → x
+-- λ. match 0 with (,) → 1
+ex_fst :: Tm Z 
+ex_fst = Lam (Bind1 (MatchPair (Var f0) (Bind2 (Var f1))))
+
+
+-- λp. match p with (x, y) → y
+-- λ. match 0 with (,) → 2
+ex_snd :: Tm Z 
+ex_snd = Lam (Bind1 (MatchPair (Var f0) (Bind2 (Var f0))))
+
 
 ------------------------------------------------------------------------
 -- * Substitution environments
@@ -225,8 +239,6 @@ exampleE = ex_id .: ex_const .: ex_comp .: zeroE
 -- variables. We map each index to a variable with that index.
 id3E :: Env N3 N3
 id3E = Var f0 .: Var f1 .: Var f2 .: zeroE
-
-
 
 
 
